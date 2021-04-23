@@ -1,0 +1,72 @@
+name: Deploy Nightly
+on:
+  schedule:
+    - cron: '20 14 * * *' # run at 2 AM UTC
+  workflow_dispatch:
+
+
+jobs:
+  nightly:
+    name: Deploy nightly
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-10.15, ubuntu-18.04]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    
+      - uses: actions/checkout@master
+        with:
+          repository: masinter/medley
+          path: ./medley
+          
+      - uses: actions/checkout@master
+        with:
+         repository: masinter/maiko
+         path: ./maiko
+          
+      - name: Install X11 dependencies on MacOS
+        if: ${{ runner.os == 'macOS'}}
+        run: brew install xterm
+      - name: Install X11 dependencies on Linux
+        if: ${{ runner.os == 'Linux'}}
+        run:  |
+          echo "A initial message"
+          sudo apt-get update
+          sudo apt-get install -y xserver-xorg-core openbox xauth xvfb tightvncserver
+          echo "A initial message"
+          export DISPLAY=':99.0'
+          echo "A initial message"
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+      - name: Show Working directory
+        if: ${{ runner.os == 'macOS'}}
+        run: ls /Library/LaunchAgents/
+      - name: Show Working directory
+        run: export DISPLAY=':99.0'
+      - name: set env
+        if: ${{ runner.os == 'macOS'}}
+        run: xterm -geometry 1270x720 :0 & DISPLAY=:0
+      - name: Build Maiko
+        working-directory: maiko/bin
+        run: ./makeright x
+      - name: Build Maiko
+        working-directory: maiko/bin
+        run: ./makeright init
+      - name: Build medley
+        #if: ${{ runner.os == 'Linux'}}
+        working-directory: medley
+        run:  |
+          Xvfb :1 -screen 0 1440x900x16 &> xvfb.log & ps aux | grep X ; DISPLAY=:1.0 ; export DISPLAY ; ./scripts/loadup-all.sh
+          #chmod +x ldex
+          #Xvnc -geometry 1270x720 :0 & DISPLAY=:0 
+          #ldex -g 1280x720 full.sysout
+          #Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &  
+          #echo "A initial message"
+          #export DISPLAY=':99.0'
+          #echo "A initial message"    
+      - name: run medley
+        continue-on-error: true
+        working-directory: medley
+        run: Xvfb :1 -screen 0 1440x900x16 &> xvfb.log & ps aux | grep X ; DISPLAY=:1.0 ; export DISPLAY ; timeout 10s ./run-medley docker exec -it gracious_jackson  bash -c "Xvfb :1 -screen 0 1440x900x16 &> xvfb.log & ps aux | grep X ; DISPLAY=:1.0 ; export DISPLAY ; timeout 10s ./run-medley; exit 0
+ 

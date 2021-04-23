@@ -1,24 +1,25 @@
 FROM ubuntu:focal
 ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y build-essential git clang libx11-dev tightvncserver xorg openbox xvfb
 
-RUN apt-get update && apt-get install -y build-essential clang libx11-dev
-COPY maiko /build/
-WORKDIR /build/bin
-RUN rm -rf /build/linux*
+RUN Xvfb :1 -screen 0 1042x790x16 &> xvfb.log & ps aux | grep X
+RUN mkdir ~/.ssh
+RUN touch /home/id_rsa
+RUN ssh-keyscan -t rsa github.com > ~/.ssh/known_hosts
+RUN git clone https://github.com/masinter/maiko.git
+
+WORKDIR /maiko/bin
 RUN ./makeright x
+RUN ./makeright init
 
+RUN DISPLAY=:1.0
+RUN export DISPLAY
 
-FROM ubuntu:focal
-ENV DEBIAN_FRONTEND=noninteractive
+COPY . /medley
+WORKDIR /medley
+#RUN DISPLAY=:1.0 & export DISPLAY & ./scripts/loadup-all.sh 
 
-EXPOSE 5900
-
-RUN apt-get update && apt-get install -y tightvncserver
-RUN mkdir /app
-WORKDIR /app
-COPY basics ./
-COPY --from=0 /build/linux.x86_64/* ./
-
-RUN adduser --disabled-password --gecos "" medley
-USER medley
-ENTRYPOINT USER=medley Xvnc -geometry 1270x720 :0 & DISPLAY=:0 /app/ldex -g 1280x720 full.sysout
+#RUN Xvfb :99 -screen 0 1440x900x16 &> xvfb.log & ps aux | grep X
+#RUN DISPLAY=:99.0 & export DISPLAY 
+#RUN export DISPLAY
+#RUN ./run-medley
